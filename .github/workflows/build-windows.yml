@@ -1,0 +1,52 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Windows release package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.44.1"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Package ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive `
+            -Path "build\windows\x64\runner\Release\*" `
+            -DestinationPath "dist\LAN-Transfer-0.1.0-windows-x64.zip" `
+            -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LAN-Transfer-0.1.0-windows-x64
+          path: dist/LAN-Transfer-0.1.0-windows-x64.zip
