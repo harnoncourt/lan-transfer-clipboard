@@ -14,9 +14,11 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.Locale
 
 class MainActivity : FlutterActivity() {
     private val filesChannelName = "app.local.lan_transfer_clipboard/files"
+    private val platformChannelName = "app.local.lan_transfer_clipboard/platform"
     private var multicastLock: WifiManager.MulticastLock? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -40,6 +42,14 @@ class MainActivity : FlutterActivity() {
                     result.success(saveToDownloads(sourcePath, fileName, relativePath))
                 } catch (error: Exception) {
                     result.error("save_failed", error.message, null)
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, platformChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getDeviceName" -> result.success(deviceName())
+                    "getWifiIpv4Address" -> result.success(wifiIpv4Address())
+                    else -> result.notImplemented()
                 }
             }
     }
@@ -141,5 +151,34 @@ class MainActivity : FlutterActivity() {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
             ?: "application/octet-stream"
+    }
+
+    private fun deviceName(): String {
+        val manufacturer = Build.MANUFACTURER?.trim().orEmpty()
+        val model = Build.MODEL?.trim().orEmpty()
+        val name = when {
+            manufacturer.isBlank() && model.isBlank() -> "Android device"
+            manufacturer.isBlank() -> model
+            model.startsWith(manufacturer, ignoreCase = true) -> model
+            else -> "$manufacturer $model"
+        }
+        return name.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+        }
+    }
+
+    private fun wifiIpv4Address(): String? {
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val rawAddress = wifiManager?.connectionInfo?.ipAddress ?: return null
+        if (rawAddress == 0) {
+            return null
+        }
+
+        return listOf(
+            rawAddress and 0xff,
+            rawAddress shr 8 and 0xff,
+            rawAddress shr 16 and 0xff,
+            rawAddress shr 24 and 0xff,
+        ).joinToString(".")
     }
 }

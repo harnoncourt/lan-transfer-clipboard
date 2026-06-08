@@ -34,6 +34,8 @@ Android 重点检查：
 - 避免访客 Wi-Fi、公司隔离网络和公共 Wi-Fi。
 - 如果家庭 Wi-Fi 仍失败，用手机热点或另一台路由器交叉验证。
 
+如果 Android 顶部显示 `localhost` 或错误 IP，请安装最新 APK。当前版本会通过 Android 原生接口读取设备型号和 Wi-Fi IPv4，并过滤不可连接的本地地址。
+
 ## Android 息屏后在线列表为空
 
 Android 息屏或锁屏一段时间后，系统可能暂停 Dart 定时器、UDP socket 事件或 Wi-Fi 广播接收。当前版本在应用回到前台时会自动：

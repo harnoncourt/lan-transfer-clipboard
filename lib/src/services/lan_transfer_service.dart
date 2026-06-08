@@ -15,6 +15,8 @@ class LanTransferService extends ChangeNotifier {
   static const int _maxStoredReceivedItems = 300;
   static const MethodChannel _platformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/files');
+  static const MethodChannel _androidPlatformChannel =
+      MethodChannel('app.local.lan_transfer_clipboard/platform');
 
   final Map<String, LanPeer> _peers = {};
   final List<ReceivedItem> _receivedItems = [];
@@ -402,18 +404,89 @@ class LanTransferService extends ChangeNotifier {
   }
 
   Future<List<String>> _loadLocalAddresses() async {
+    final addresses = <String>{};
+    final androidWifiAddress = await _loadAndroidWifiAddress();
+    if (androidWifiAddress != null) {
+      addresses.add(androidWifiAddress);
+    }
+
     final interfaces = await NetworkInterface.list(
       includeLinkLocal: false,
       type: InternetAddressType.IPv4,
     );
 
-    return interfaces
+    addresses.addAll(interfaces
         .expand((interface) => interface.addresses)
-        .where((address) => !address.isLoopback)
+        .where(_isUsableLanAddress)
         .map((address) => address.address)
-        .toSet()
-        .toList()
-      ..sort();
+        .where(_isUsableLanAddressText));
+
+    return addresses.toList()..sort(_compareLanAddresses);
+  }
+
+  Future<String?> _loadAndroidWifiAddress() async {
+    if (!Platform.isAndroid) {
+      return null;
+    }
+
+    try {
+      final address = await _androidPlatformChannel.invokeMethod<String>(
+        'getWifiIpv4Address',
+      );
+      if (address != null && _isUsableLanAddressText(address)) {
+        return address;
+      }
+    } on PlatformException {
+      // Fall back to NetworkInterface below.
+    } on MissingPluginException {
+      // Fall back to NetworkInterface below.
+    }
+    return null;
+  }
+
+  bool _isUsableLanAddress(InternetAddress address) {
+    return !address.isLoopback && _isUsableLanAddressText(address.address);
+  }
+
+  bool _isUsableLanAddressText(String address) {
+    if (address == '0.0.0.0' ||
+        address == '127.0.0.1' ||
+        address.startsWith('169.254.')) {
+      return false;
+    }
+
+    final parts = address.split('.');
+    if (parts.length != 4) {
+      return false;
+    }
+    final octets = parts.map(int.tryParse).toList();
+    return !octets.any((octet) => octet == null || octet < 0 || octet > 255);
+  }
+
+  int _compareLanAddresses(String a, String b) {
+    final priority = _addressPriority(a).compareTo(_addressPriority(b));
+    if (priority != 0) {
+      return priority;
+    }
+    return a.compareTo(b);
+  }
+
+  int _addressPriority(String address) {
+    if (address.startsWith('192.168.')) {
+      return 0;
+    }
+    if (address.startsWith('10.')) {
+      return 1;
+    }
+    final parts = address.split('.');
+    final second = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    if (address.startsWith('172.') &&
+        second != null &&
+        second >= 16 &&
+        second <= 31) {
+      return 2;
+    }
+    return 3;
   }
 
   Set<String> _discoveryTargets() {
