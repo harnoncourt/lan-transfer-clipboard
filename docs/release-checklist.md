@@ -12,6 +12,7 @@
 - 已测试拒绝防火墙权限后的错误提示。
 - 已测试应用重启后收件箱历史仍保留。
 - 已测试收件箱“显示更多”能展开历史记录。
+- 已测试顶部在线数和设备清单数量一致。
 
 ## macOS
 
@@ -48,6 +49,7 @@ flutter build windows
 - AndroidManifest 权限完整。
 - 真机测试同一 Wi-Fi 发现。
 - 测试 `WifiManager.MulticastLock` 生效后右上角在线设备数能正确显示远端设备。
+- 测试 Android 设备清单正常时，顶部在线数不会停留在 `0 在线`。
 - 测试收件箱不会显示桌面端文件夹/定位按钮。
 - Android 13+ 通知权限按需处理。
 - release keystore 已配置。
