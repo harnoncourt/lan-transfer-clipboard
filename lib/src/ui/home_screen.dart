@@ -28,12 +28,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    widget.service.addListener(_syncSelectedPeer);
+    widget.service.addListener(_handleServiceChanged);
   }
 
   @override
   void dispose() {
-    widget.service.removeListener(_syncSelectedPeer);
+    widget.service.removeListener(_handleServiceChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -398,22 +398,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _syncSelectedPeer() {
+  void _handleServiceChanged() {
+    if (!mounted) {
+      return;
+    }
+
     final current = _selectedPeer;
     if (current == null) {
+      setState(() {});
       return;
     }
 
     final stillOnline = widget.service.peers.where((peer) {
       return peer.deviceId == current.deviceId;
     });
-    if (stillOnline.isEmpty && mounted) {
+    if (stillOnline.isEmpty) {
       setState(() {
         _selectedPeer = null;
         _sendState = _SendState.warning;
         _status = '目标设备已离线';
       });
+      return;
     }
+
+    setState(() {});
   }
 }
 
