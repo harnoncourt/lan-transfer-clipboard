@@ -32,9 +32,11 @@ flutter build macos
 ## Windows
 
 - 在 Windows 真机或虚拟机上构建。
+- 或使用 GitHub Actions `Build Windows` 云端构建并下载 artifact。
 - 测试 Windows Defender Firewall 弹窗。
 - 测试专用网络下互传。
 - 测试右上角在线设备数能正确显示远端设备。
+- 测试远端退出后，在线设备数在 15-20 秒内下降。
 - 测试收件箱“在资源管理器中显示”能选中收到的文件。
 - 发布安装包签名。
 
