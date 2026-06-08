@@ -49,9 +49,9 @@ flutter test
 
 Windows 包可以通过 GitHub Actions 云端打包，不需要本地 Windows。见 [Windows 开发与打包](docs/windows.md)。
 
-当前 Windows 云端打包 workflow 已验证通过，最新产物可在 GitHub Actions run 中下载：
+Windows 云端打包 workflow 已验证通过，产物可在 GitHub Actions 的 `Build Windows` run 中下载：
 
-[Build Windows #27138668026](https://github.com/harnoncourt/lan-transfer-clipboard/actions/runs/27138668026)
+[Build Windows](https://github.com/harnoncourt/lan-transfer-clipboard/actions/workflows/build-windows.yml)
 
 本地已下载的 Windows ZIP：
 
