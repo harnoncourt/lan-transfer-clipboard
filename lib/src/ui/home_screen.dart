@@ -48,7 +48,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
-      widget.service.pauseDiscoveryPruning();
+      if (Platform.isAndroid || Platform.isIOS) {
+        widget.service.pauseDiscoveryPruning();
+      }
     }
   }
 

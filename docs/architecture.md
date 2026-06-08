@@ -103,6 +103,8 @@ flowchart LR
 
 发现广播会同时发往 `255.255.255.255` 和根据本机 IPv4 推导出的 `/24` directed broadcast 地址。收到自身 `deviceId` 的心跳会被过滤；超过 15 秒没有更新的 peer 会从在线列表移除。Android 端额外持有 `WifiManager.MulticastLock`，避免部分设备在普通 Wi-Fi 模式下漏收 UDP 广播。
 
+离线清理在 macOS 和 Windows 上持续运行，不因窗口失焦、隐藏或最小化暂停。Android/iOS 进入后台时会暂停离线清理，回到前台后重新绑定 discovery socket 并发送一组 `hello` 心跳，避免移动端息屏期间把仍在线设备误清空。
+
 ## 数据流
 
 ### 发现设备
