@@ -117,12 +117,14 @@ xattr -dr com.apple.quarantine /opt/homebrew/share/flutter
 - macOS：收件箱提供“在 Finder 中显示”。
 - Windows：收件箱提供“在资源管理器中显示”，底层使用 `explorer.exe /select,<path>`。
 - Android：文件写入系统下载目录 `Download/LAN Transfer`。可以从系统“下载”或文件管理器中直接找到。
+- 收件箱历史会在应用重新打开后恢复显示；默认显示最近 20 条，底部“显示更多”可以继续展开。
 
 排查方式：
 
 - 查看接收记录中的路径。
 - 桌面端使用收件箱里的文件夹或定位按钮。
 - Android 端打开文件管理器，进入“下载”目录下的 `LAN Transfer` 文件夹；也可以从收件箱直接打开文件。若系统没有可处理该文件类型的应用，会提示打开失败。
+- 如果历史记录显示但文件打不开，通常是文件被用户从接收目录移动或删除了；重新接收一次即可。
 
 ## 公共 Wi-Fi 不工作
 

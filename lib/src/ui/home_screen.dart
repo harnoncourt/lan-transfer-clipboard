@@ -624,7 +624,7 @@ class _ActionPanel extends StatelessWidget {
   }
 }
 
-class _ReceivedPanel extends StatelessWidget {
+class _ReceivedPanel extends StatefulWidget {
   const _ReceivedPanel({
     required this.items,
     required this.onOpenFolder,
@@ -650,9 +650,34 @@ class _ReceivedPanel extends StatelessWidget {
   final bool framed;
 
   @override
+  State<_ReceivedPanel> createState() => _ReceivedPanelState();
+}
+
+class _ReceivedPanelState extends State<_ReceivedPanel> {
+  static const int _pageSize = 20;
+
+  int _visibleCount = _pageSize;
+
+  @override
+  void didUpdateWidget(covariant _ReceivedPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.items.length < oldWidget.items.length &&
+        _visibleCount > widget.items.length) {
+      _visibleCount =
+          widget.items.length < _pageSize ? _pageSize : widget.items.length;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final visibleCount = widget.items.length < _visibleCount
+        ? widget.items.length
+        : _visibleCount;
+    final visibleItems = widget.items.take(visibleCount).toList();
+    final hiddenCount = widget.items.length - visibleCount;
+
     return _PanelShell(
-      framed: framed,
+      framed: widget.framed,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -662,14 +687,14 @@ class _ReceivedPanel extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _CountBadge(value: items.length),
-                if (showFolderAction) ...[
+                _CountBadge(value: widget.items.length),
+                if (widget.showFolderAction) ...[
                   const SizedBox(width: 8),
                   Tooltip(
-                    message: openFolderTooltip,
+                    message: widget.openFolderTooltip,
                     child: IconButton.filledTonal(
                       visualDensity: VisualDensity.compact,
-                      onPressed: onOpenFolder,
+                      onPressed: widget.onOpenFolder,
                       icon: const Icon(Icons.folder_open),
                     ),
                   ),
@@ -679,28 +704,67 @@ class _ReceivedPanel extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Expanded(
-            child: items.isEmpty
+            child: widget.items.isEmpty
                 ? const _EmptyState(
                     icon: Icons.inbox_outlined,
                     title: '暂无内容',
                     message: '收到的文本和文件会显示在这里',
                   )
                 : ListView.separated(
-                    itemCount: items.length,
+                    itemCount: visibleItems.length + (hiddenCount > 0 ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
+                      if (index == visibleItems.length) {
+                        return _ShowMoreButton(
+                          hiddenCount: hiddenCount,
+                          onPressed: _showMore,
+                        );
+                      }
+
                       return _ReceivedTile(
-                        item: items[index],
-                        onCopyText: onCopyText,
-                        onOpenFile: onOpenFile,
-                        onRevealFile: onRevealFile,
-                        revealFileTooltip: revealFileTooltip,
-                        showRevealFileAction: showRevealFileAction,
+                        item: visibleItems[index],
+                        onCopyText: widget.onCopyText,
+                        onOpenFile: widget.onOpenFile,
+                        onRevealFile: widget.onRevealFile,
+                        revealFileTooltip: widget.revealFileTooltip,
+                        showRevealFileAction: widget.showRevealFileAction,
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showMore() {
+    setState(() {
+      _visibleCount += _pageSize;
+    });
+  }
+}
+
+class _ShowMoreButton extends StatelessWidget {
+  const _ShowMoreButton({
+    required this.hiddenCount,
+    required this.onPressed,
+  });
+
+  final int hiddenCount;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = hiddenCount > _ReceivedPanelState._pageSize
+        ? _ReceivedPanelState._pageSize
+        : hiddenCount;
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.expand_more),
+        label: Text('显示更多 $count 条'),
       ),
     );
   }

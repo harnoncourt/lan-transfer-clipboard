@@ -12,6 +12,7 @@ import 'device_identity.dart';
 
 class LanTransferService extends ChangeNotifier {
   static const int discoveryPort = 45671;
+  static const int _maxStoredReceivedItems = 300;
   static const MethodChannel _platformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/files');
 
@@ -57,6 +58,7 @@ class LanTransferService extends ChangeNotifier {
     }
 
     _identity = await DeviceIdentity.load();
+    await _loadReceivedItems();
     _localAddresses = await _loadLocalAddresses();
     _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     _serveHttp(_httpServer!);
@@ -163,8 +165,7 @@ class LanTransferService extends ChangeNotifier {
       final body = await utf8.decoder.bind(request).join();
       final json = jsonDecode(body) as Map<String, Object?>;
       final text = json['text'] as String? ?? '';
-      _receivedItems.insert(
-        0,
+      _addReceivedItem(
         ReceivedItem(
           type: ReceivedItemType.clipboard,
           title: 'Clipboard text',
@@ -172,7 +173,6 @@ class LanTransferService extends ChangeNotifier {
           receivedAt: DateTime.now(),
         ),
       );
-      notifyListeners();
       request.response.statusCode = HttpStatus.noContent;
       await request.response.close();
       return;
@@ -183,8 +183,7 @@ class LanTransferService extends ChangeNotifier {
           request.headers.value('X-File-Name') ?? 'received-file';
       final safeName = _safeFileName(Uri.decodeComponent(encodedName));
       final filePath = await _saveReceivedFile(safeName, request);
-      _receivedItems.insert(
-        0,
+      _addReceivedItem(
         ReceivedItem(
           type: ReceivedItemType.file,
           title: safeName,
@@ -192,7 +191,6 @@ class LanTransferService extends ChangeNotifier {
           receivedAt: DateTime.now(),
         ),
       );
-      notifyListeners();
       request.response.statusCode = HttpStatus.noContent;
       await request.response.close();
       return;
@@ -200,6 +198,53 @@ class LanTransferService extends ChangeNotifier {
 
     request.response.statusCode = HttpStatus.notFound;
     await request.response.close();
+  }
+
+  void _addReceivedItem(ReceivedItem item) {
+    _receivedItems.insert(0, item);
+    if (_receivedItems.length > _maxStoredReceivedItems) {
+      _receivedItems.removeRange(
+        _maxStoredReceivedItems,
+        _receivedItems.length,
+      );
+    }
+    notifyListeners();
+    unawaited(_saveReceivedItems());
+  }
+
+  Future<File> _receivedItemsFile() async {
+    final directory = await getApplicationSupportDirectory();
+    await directory.create(recursive: true);
+    return File('${directory.path}/received-items.json');
+  }
+
+  Future<void> _loadReceivedItems() async {
+    final file = await _receivedItemsFile();
+    if (!await file.exists()) {
+      return;
+    }
+
+    try {
+      final data = jsonDecode(await file.readAsString()) as List<Object?>;
+      _receivedItems
+        ..clear()
+        ..addAll(
+          data.whereType<Map>().map((item) {
+            return ReceivedItem.fromJson(Map<String, Object?>.from(item));
+          }).take(_maxStoredReceivedItems),
+        );
+    } catch (_) {
+      // Ignore unreadable history; receiving new items will rewrite the file.
+    }
+  }
+
+  Future<void> _saveReceivedItems() async {
+    final file = await _receivedItemsFile();
+    final data = _receivedItems
+        .take(_maxStoredReceivedItems)
+        .map((item) => item.toJson())
+        .toList();
+    await file.writeAsString(jsonEncode(data));
   }
 
   Future<String> _saveReceivedFile(
