@@ -16,13 +16,15 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 ## 已实现能力
 
 - 启动本机局域网传输服务。
-- 每 3 秒通过 UDP 广播发送设备心跳。
+- 每 3 秒通过 UDP limited broadcast 和本机网段 directed broadcast 发送设备心跳。
 - 自动发现同一局域网内其他在线设备。
 - 向选中设备发送剪贴板文本。
 - 选择本地文件并发送给选中设备。
 - 接收剪贴板文本和文件。
 - 将收到的文件保存到应用文档目录。
 - 在界面中展示在线设备、发送状态和接收记录。
+- macOS 收件箱支持 Finder 显示文件；Windows 收件箱支持资源管理器显示文件。
+- Android 收件箱支持直接打开收到的文件，桌面专用的文件夹/定位动作会自动隐藏。
 
 ## 技术栈
 
@@ -41,6 +43,10 @@ flutter test
 ```
 
 Windows 包可以通过 GitHub Actions 云端打包，不需要本地 Windows。见 [Windows 开发与打包](docs/windows.md)。
+
+当前 Windows 云端打包 workflow 已验证通过，最新产物可在 GitHub Actions run 中下载：
+
+[Build Windows #27133176865](https://github.com/harnoncourt/lan-transfer-clipboard/actions/runs/27133176865)
 
 如果需要生成完整平台目录：
 
@@ -81,6 +87,6 @@ flutter run -d macos
 - 尚未实现接收前确认。
 - 尚未限制文件大小。
 - 移动端后台传输能力尚未实现。
-- UDP 广播在部分网络、iOS 环境或隔离 Wi-Fi 下可能不可用。
+- UDP 广播在部分网络、iOS 环境或隔离 Wi-Fi 下可能不可用；Windows 还需要允许专用网络防火墙访问。
 
 生产化前请优先完成 [安全模型](docs/security.md) 中的 P0/P1 项。

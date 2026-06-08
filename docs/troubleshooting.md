@@ -9,6 +9,7 @@
 - 防火墙阻止 UDP 或入站连接。
 - iOS 未授予 Local Network 权限。
 - 路由器不转发 UDP broadcast。
+- Windows 网络类型是公用网络，或没有允许应用通过专用网络防火墙。
 
 排查方式：
 
@@ -17,6 +18,21 @@
 3. 检查系统防火墙。
 4. 重启应用。
 5. 在路由器中关闭客户端隔离。
+
+当前实现会同时向 `255.255.255.255` 和本机 `/24` 网段 directed broadcast 发送心跳。Android 端也会申请 `WifiManager.MulticastLock`。如果 Windows 或 Android 右上角仍显示 `0 在线`，通常说明当前网络或系统防火墙仍在拦截 UDP `45671` 或设备互访。
+
+Windows 重点检查：
+
+- 将当前 Wi-Fi/以太网设置为专用网络。
+- 在 Windows Defender Firewall 中允许 `LAN Transfer.exe` 的专用网络访问。
+- 关闭 VPN、代理安全软件或第三方防火墙后重试。
+
+Android 重点检查：
+
+- 保持应用在前台运行。
+- 关闭 VPN。
+- 避免访客 Wi-Fi、公司隔离网络和公共 Wi-Fi。
+- 如果家庭 Wi-Fi 仍失败，用手机热点或另一台路由器交叉验证。
 
 ## 能发现设备但发送失败
 
@@ -83,12 +99,19 @@ xattr -dr com.apple.quarantine /opt/homebrew/share/flutter
 
 ## 文件接收后找不到
 
-当前接收文件保存到应用文档目录。不同平台路径不同。后续应在 UI 中增加“打开接收目录”按钮。
+当前接收文件保存到应用文档目录。不同平台路径不同。
 
-临时排查方式：
+平台行为：
+
+- macOS：收件箱提供“在 Finder 中显示”。
+- Windows：收件箱提供“在资源管理器中显示”，底层使用 `explorer.exe /select,<path>`。
+- Android：受 scoped storage 和应用私有目录限制，收件箱隐藏桌面文件夹/定位动作，只保留“打开文件”和文本复制。
+
+排查方式：
 
 - 查看接收记录中的路径。
-- 在桌面端复制路径到 Finder 或文件管理器。
+- 桌面端使用收件箱里的文件夹或定位按钮。
+- Android 端从收件箱直接打开文件；若系统没有可处理该文件类型的应用，会提示打开失败。
 
 ## 公共 Wi-Fi 不工作
 

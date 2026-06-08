@@ -94,6 +94,8 @@ flowchart LR
 - 客户端：向选中的远端设备发送 HTTP 请求。
 - 发现节点：周期性广播自己的设备信息，同时监听其他设备广播。
 
+发现广播会同时发往 `255.255.255.255` 和根据本机 IPv4 推导出的 `/24` directed broadcast 地址。收到自身 `deviceId` 的心跳会被过滤；超过 15 秒没有更新的 peer 会从在线列表移除。Android 端额外持有 `WifiManager.MulticastLock`，避免部分设备在普通 Wi-Fi 模式下漏收 UDP 广播。
+
 ## 数据流
 
 ### 发现设备
@@ -151,6 +153,7 @@ sequenceDiagram
 - 没有传输进度。
 - 没有后台服务。
 - 没有跨子网发现。
+- 发现能力仍依赖当前 Wi-Fi/路由器是否允许 UDP broadcast 和设备互访。
 
 ## 演进方向
 

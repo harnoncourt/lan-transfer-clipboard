@@ -31,6 +31,8 @@ flutter build macos
 - 在 Windows 真机或虚拟机上构建。
 - 测试 Windows Defender Firewall 弹窗。
 - 测试专用网络下互传。
+- 测试右上角在线设备数能正确显示远端设备。
+- 测试收件箱“在资源管理器中显示”能选中收到的文件。
 - 发布安装包签名。
 
 构建命令：
@@ -43,6 +45,8 @@ flutter build windows
 
 - AndroidManifest 权限完整。
 - 真机测试同一 Wi-Fi 发现。
+- 测试 `WifiManager.MulticastLock` 生效后右上角在线设备数能正确显示远端设备。
+- 测试收件箱不会显示桌面端文件夹/定位按钮。
 - Android 13+ 通知权限按需处理。
 - release keystore 已配置。
 - 已测试 APK/AAB 安装。
