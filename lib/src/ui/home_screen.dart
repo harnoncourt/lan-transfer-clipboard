@@ -55,13 +55,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _TopBar(
+      appBar: _ReactiveTopBar(
         title: 'LAN Transfer',
+        service: widget.service,
         selectedPeer: _selectedPeer,
-        peerCount: widget.service.peers.length,
-        localDeviceName: widget.service.localDeviceName,
-        localPort: widget.service.localPort,
-        localAddresses: widget.service.localAddresses,
       ),
       body: AnimatedBuilder(
         animation: widget.service,
@@ -405,7 +402,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final current = _selectedPeer;
     if (current == null) {
-      setState(() {});
       return;
     }
 
@@ -420,12 +416,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
       return;
     }
-
-    setState(() {});
   }
 }
 
 enum _SendState { idle, sending, success, warning, error }
+
+class _ReactiveTopBar extends StatelessWidget implements PreferredSizeWidget {
+  const _ReactiveTopBar({
+    required this.title,
+    required this.service,
+    required this.selectedPeer,
+  });
+
+  final String title;
+  final LanTransferService service;
+  final LanPeer? selectedPeer;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(64);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: service,
+      builder: (context, _) {
+        final selected = _currentSelectedPeer();
+        return _TopBar(
+          title: title,
+          selectedPeer: selected,
+          peerCount: service.peers.length,
+          localDeviceName: service.localDeviceName,
+          localPort: service.localPort,
+          localAddresses: service.localAddresses,
+        );
+      },
+    );
+  }
+
+  LanPeer? _currentSelectedPeer() {
+    final selected = selectedPeer;
+    if (selected == null) {
+      return null;
+    }
+
+    for (final peer in service.peers) {
+      if (peer.deviceId == selected.deviceId) {
+        return peer;
+      }
+    }
+    return selected;
+  }
+}
 
 class _TopBar extends StatelessWidget implements PreferredSizeWidget {
   const _TopBar({
