@@ -207,8 +207,15 @@ class LanTransferService extends ChangeNotifier {
     if (socket == null) {
       return;
     }
+
     final bytes = utf8.encode(jsonEncode(_helloPayload()));
-    socket.send(bytes, InternetAddress('255.255.255.255'), discoveryPort);
+    for (final target in _discoveryTargets()) {
+      try {
+        socket.send(bytes, InternetAddress(target), discoveryPort);
+      } on SocketException {
+        // Some platforms reject specific broadcast addresses. Try the others.
+      }
+    }
   }
 
   Map<String, Object?> _helloPayload() {
@@ -247,5 +254,27 @@ class LanTransferService extends ChangeNotifier {
         .toSet()
         .toList()
       ..sort();
+  }
+
+  Set<String> _discoveryTargets() {
+    final targets = <String>{'255.255.255.255'};
+
+    for (final address in _localAddresses) {
+      final parts = address.split('.');
+      if (parts.length != 4) {
+        continue;
+      }
+
+      final octets = parts.map(int.tryParse).toList();
+      if (octets.any((octet) => octet == null)) {
+        continue;
+      }
+
+      // Most home and office LANs use /24 subnets. Directed broadcast reaches
+      // Windows and Android networks that ignore the limited broadcast address.
+      targets.add('${octets[0]}.${octets[1]}.${octets[2]}.255');
+    }
+
+    return targets;
   }
 }

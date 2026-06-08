@@ -88,6 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onRevealFile: _revealReceivedFile,
                         openFolderTooltip: _openFolderTooltip(),
                         revealFileTooltip: _revealFileTooltip(),
+                        showFolderAction: _supportsFileManagerActions,
+                        showRevealFileAction: _supportsFileManagerActions,
                       ),
                     ),
                   ],
@@ -130,6 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               onRevealFile: _revealReceivedFile,
                               openFolderTooltip: _openFolderTooltip(),
                               revealFileTooltip: _revealFileTooltip(),
+                              showFolderAction: _supportsFileManagerActions,
+                              showRevealFileAction: _supportsFileManagerActions,
                               framed: true,
                             ),
                           ),
@@ -172,6 +176,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onRevealFile: _revealReceivedFile,
                       openFolderTooltip: _openFolderTooltip(),
                       revealFileTooltip: _revealFileTooltip(),
+                      showFolderAction: _supportsFileManagerActions,
+                      showRevealFileAction: _supportsFileManagerActions,
                       framed: true,
                     ),
                   ),
@@ -261,11 +267,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openReceivedFolder() async {
-    if (Platform.isAndroid) {
-      _showMessage('Android 收到的文件可在收件箱中逐个打开');
-      return;
-    }
-
     final directory = await widget.service.getReceivedDirectory();
     await _openPath(directory.path, '已打开收件目录');
   }
@@ -361,6 +362,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return '打开收件目录';
     }
     return '在$fileManager中打开收件目录';
+  }
+
+  bool get _supportsFileManagerActions {
+    return Platform.isMacOS || Platform.isWindows;
   }
 
   void _showMessage(String message) {
@@ -611,6 +616,8 @@ class _ReceivedPanel extends StatelessWidget {
     required this.onRevealFile,
     required this.openFolderTooltip,
     required this.revealFileTooltip,
+    required this.showFolderAction,
+    required this.showRevealFileAction,
     this.framed = false,
   });
 
@@ -621,6 +628,8 @@ class _ReceivedPanel extends StatelessWidget {
   final ValueChanged<ReceivedItem> onRevealFile;
   final String openFolderTooltip;
   final String revealFileTooltip;
+  final bool showFolderAction;
+  final bool showRevealFileAction;
   final bool framed;
 
   @override
@@ -637,15 +646,17 @@ class _ReceivedPanel extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _CountBadge(value: items.length),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: openFolderTooltip,
-                  child: IconButton.filledTonal(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: onOpenFolder,
-                    icon: const Icon(Icons.folder_open),
+                if (showFolderAction) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: openFolderTooltip,
+                    child: IconButton.filledTonal(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onOpenFolder,
+                      icon: const Icon(Icons.folder_open),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -667,6 +678,7 @@ class _ReceivedPanel extends StatelessWidget {
                         onOpenFile: onOpenFile,
                         onRevealFile: onRevealFile,
                         revealFileTooltip: revealFileTooltip,
+                        showRevealFileAction: showRevealFileAction,
                       );
                     },
                   ),
@@ -1029,6 +1041,7 @@ class _ReceivedTile extends StatelessWidget {
     required this.onOpenFile,
     required this.onRevealFile,
     required this.revealFileTooltip,
+    required this.showRevealFileAction,
   });
 
   final ReceivedItem item;
@@ -1036,6 +1049,7 @@ class _ReceivedTile extends StatelessWidget {
   final ValueChanged<ReceivedItem> onOpenFile;
   final ValueChanged<ReceivedItem> onRevealFile;
   final String revealFileTooltip;
+  final bool showRevealFileAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1111,11 +1125,12 @@ class _ReceivedTile extends StatelessWidget {
                     icon: Icons.open_in_new,
                     onPressed: () => onOpenFile(item),
                   ),
-                  _TileAction(
-                    tooltip: revealFileTooltip,
-                    icon: Icons.drive_file_move_outline,
-                    onPressed: () => onRevealFile(item),
-                  ),
+                  if (showRevealFileAction)
+                    _TileAction(
+                      tooltip: revealFileTooltip,
+                      icon: Icons.drive_file_move_outline,
+                      onPressed: () => onRevealFile(item),
+                    ),
                 ],
               )
             else
