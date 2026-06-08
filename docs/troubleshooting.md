@@ -110,19 +110,19 @@ xattr -dr com.apple.quarantine /opt/homebrew/share/flutter
 
 ## 文件接收后找不到
 
-当前接收文件保存到应用文档目录。不同平台路径不同。
+当前接收文件保存到平台接收目录。不同平台路径不同。
 
 平台行为：
 
 - macOS：收件箱提供“在 Finder 中显示”。
 - Windows：收件箱提供“在资源管理器中显示”，底层使用 `explorer.exe /select,<path>`。
-- Android：受 scoped storage 和应用私有目录限制，收件箱隐藏桌面文件夹/定位动作，只保留“打开文件”和文本复制。
+- Android：文件写入系统下载目录 `Download/LAN Transfer`。可以从系统“下载”或文件管理器中直接找到。
 
 排查方式：
 
 - 查看接收记录中的路径。
 - 桌面端使用收件箱里的文件夹或定位按钮。
-- Android 端从收件箱直接打开文件；若系统没有可处理该文件类型的应用，会提示打开失败。
+- Android 端打开文件管理器，进入“下载”目录下的 `LAN Transfer` 文件夹；也可以从收件箱直接打开文件。若系统没有可处理该文件类型的应用，会提示打开失败。
 
 ## 公共 Wi-Fi 不工作
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/lan_peer.dart';
@@ -11,6 +12,8 @@ import 'device_identity.dart';
 
 class LanTransferService extends ChangeNotifier {
   static const int discoveryPort = 45671;
+  static const MethodChannel _platformChannel =
+      MethodChannel('app.local.lan_transfer_clipboard/files');
 
   final Map<String, LanPeer> _peers = {};
   final List<ReceivedItem> _receivedItems = [];
@@ -40,7 +43,11 @@ class LanTransferService extends ChangeNotifier {
 
   List<String> get localAddresses => List.unmodifiable(_localAddresses);
 
-  Future<Directory> getReceivedDirectory() {
+  Future<Directory> getReceivedDirectory() async {
+    if (Platform.isAndroid) {
+      return Directory('/storage/emulated/0/Download/LAN Transfer');
+    }
+
     return getApplicationDocumentsDirectory();
   }
 
@@ -175,17 +182,13 @@ class LanTransferService extends ChangeNotifier {
       final encodedName =
           request.headers.value('X-File-Name') ?? 'received-file';
       final safeName = _safeFileName(Uri.decodeComponent(encodedName));
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/$safeName');
-      final sink = file.openWrite();
-      await sink.addStream(request);
-      await sink.close();
+      final filePath = await _saveReceivedFile(safeName, request);
       _receivedItems.insert(
         0,
         ReceivedItem(
           type: ReceivedItemType.file,
           title: safeName,
-          detail: file.path,
+          detail: filePath,
           receivedAt: DateTime.now(),
         ),
       );
@@ -197,6 +200,55 @@ class LanTransferService extends ChangeNotifier {
 
     request.response.statusCode = HttpStatus.notFound;
     await request.response.close();
+  }
+
+  Future<String> _saveReceivedFile(
+    String safeName,
+    Stream<List<int>> bytes,
+  ) async {
+    if (Platform.isAndroid) {
+      return _saveAndroidDownload(safeName, bytes);
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    await directory.create(recursive: true);
+    final file = File('${directory.path}/$safeName');
+    final sink = file.openWrite();
+    await sink.addStream(bytes);
+    await sink.close();
+    return file.path;
+  }
+
+  Future<String> _saveAndroidDownload(
+    String safeName,
+    Stream<List<int>> bytes,
+  ) async {
+    final tempDirectory = await getTemporaryDirectory();
+    await tempDirectory.create(recursive: true);
+    final tempFile = File('${tempDirectory.path}/$safeName');
+    final sink = tempFile.openWrite();
+    await sink.addStream(bytes);
+    await sink.close();
+
+    try {
+      final result = await _platformChannel.invokeMapMethod<String, String>(
+        'saveToDownloads',
+        {
+          'sourcePath': tempFile.path,
+          'fileName': safeName,
+          'relativePath': 'Download/LAN Transfer',
+        },
+      );
+      final publicPath = result?['path'];
+      if (publicPath == null || publicPath.isEmpty) {
+        throw const FileSystemException('Android download path is unavailable');
+      }
+      return publicPath;
+    } finally {
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    }
   }
 
   void _handleDiscoveryEvent(RawSocketEvent event) {

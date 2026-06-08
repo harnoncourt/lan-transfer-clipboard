@@ -124,7 +124,7 @@ Content-Length: 12345
 1. 读取 `X-File-Name`。
 2. URL decode 文件名。
 3. 替换文件名中的非法路径字符。
-4. 保存到应用文档目录。
+4. 保存到平台接收目录。Android 使用系统下载目录 `Download/LAN Transfer`；桌面端使用应用文档目录。
 5. 写入接收记录。
 
 ## 错误处理
