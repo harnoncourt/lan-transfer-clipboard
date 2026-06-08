@@ -49,7 +49,7 @@ Windows 包可以通过 GitHub Actions 云端打包，不需要本地 Windows。
 
 当前 Windows 云端打包 workflow 已验证通过，最新产物可在 GitHub Actions run 中下载：
 
-[Build Windows #27137582626](https://github.com/harnoncourt/lan-transfer-clipboard/actions/runs/27137582626)
+[Build Windows #27138282943](https://github.com/harnoncourt/lan-transfer-clipboard/actions/runs/27138282943)
 
 本地已下载的 Windows ZIP：
 

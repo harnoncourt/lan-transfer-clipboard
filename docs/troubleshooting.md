@@ -121,7 +121,7 @@ xattr -dr com.apple.quarantine /opt/homebrew/share/flutter
 平台行为：
 
 - macOS：收件箱提供“在 Finder 中显示”。
-- Windows：收件箱提供“在资源管理器中显示”，底层使用 `explorer.exe /select,<path>`。
+- Windows：收件箱提供“在资源管理器中显示”，底层使用 `explorer.exe /select,"<path>"`；如果历史记录指向的文件已被移动或删除，会提示文件不存在。
 - Android：文件写入系统下载目录 `Download/LAN Transfer`。可以从系统“下载”或文件管理器中直接找到。
 - 收件箱历史会在应用重新打开后恢复显示；默认显示最近 20 条，底部“显示更多”可以继续展开。
 
