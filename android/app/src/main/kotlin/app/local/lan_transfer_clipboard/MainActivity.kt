@@ -112,7 +112,11 @@ class MainActivity : FlutterActivity() {
                 values.clear()
                 values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 resolver.update(uri, values, null, null)
-                return mapOf("path" to publicPath, "uri" to uri.toString())
+                return mapOf(
+                    "path" to publicPath,
+                    "uri" to uri.toString(),
+                    "name" to displayName,
+                )
             } catch (error: Exception) {
                 resolver.delete(uri, null, null)
                 throw error
@@ -126,7 +130,11 @@ class MainActivity : FlutterActivity() {
                 input.copyTo(output)
             }
         }
-        return mapOf("path" to destination.absolutePath, "uri" to destination.toURI().toString())
+        return mapOf(
+            "path" to destination.absolutePath,
+            "uri" to destination.toURI().toString(),
+            "name" to displayName,
+        )
     }
 
     private fun normalizedRelativePath(relativePath: String): String {

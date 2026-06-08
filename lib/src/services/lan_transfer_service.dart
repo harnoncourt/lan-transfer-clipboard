@@ -11,12 +11,24 @@ import '../models/received_item.dart';
 import 'device_identity.dart';
 
 class LanTransferService extends ChangeNotifier {
+  LanTransferService({
+    Duration connectionTimeout = const Duration(seconds: 10),
+    Duration clipboardTimeout = const Duration(seconds: 15),
+    Duration fileTimeout = const Duration(seconds: 60),
+  })  : _connectionTimeout = connectionTimeout,
+        _clipboardTimeout = clipboardTimeout,
+        _fileTimeout = fileTimeout;
+
   static const int discoveryPort = 45671;
   static const int _maxStoredReceivedItems = 300;
   static const MethodChannel _platformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/files');
   static const MethodChannel _androidPlatformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/platform');
+
+  final Duration _connectionTimeout;
+  final Duration _clipboardTimeout;
+  final Duration _fileTimeout;
 
   final Map<String, LanPeer> _peers = {};
   final List<ReceivedItem> _receivedItems = [];
@@ -105,12 +117,16 @@ class LanTransferService extends ChangeNotifier {
   }
 
   Future<void> sendClipboard(LanPeer peer, String text) async {
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = _connectionTimeout
+      ..idleTimeout = _clipboardTimeout;
     try {
-      final request = await client.postUrl(peer.baseUri.resolve('/clipboard'));
+      final request = await client
+          .postUrl(peer.baseUri.resolve('/clipboard'))
+          .timeout(_connectionTimeout);
       request.headers.contentType = ContentType.json;
       request.add(utf8.encode(jsonEncode({'text': text})));
-      final response = await request.close();
+      final response = await request.close().timeout(_clipboardTimeout);
       if (response.statusCode >= 300) {
         throw HttpException('Clipboard send failed: ${response.statusCode}');
       }
@@ -125,14 +141,18 @@ class LanTransferService extends ChangeNotifier {
     required int fileLength,
     required Stream<List<int>> bytes,
   }) async {
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = _connectionTimeout
+      ..idleTimeout = _fileTimeout;
     try {
-      final request = await client.postUrl(peer.baseUri.resolve('/file'));
+      final request = await client
+          .postUrl(peer.baseUri.resolve('/file'))
+          .timeout(_connectionTimeout);
       request.headers.contentType = ContentType.binary;
       request.headers.set('X-File-Name', Uri.encodeComponent(fileName));
       request.contentLength = fileLength;
-      await request.addStream(bytes);
-      final response = await request.close();
+      await request.addStream(bytes).timeout(_fileTimeout);
+      final response = await request.close().timeout(_fileTimeout);
       if (response.statusCode >= 300) {
         throw HttpException('File send failed: ${response.statusCode}');
       }
@@ -184,12 +204,12 @@ class LanTransferService extends ChangeNotifier {
       final encodedName =
           request.headers.value('X-File-Name') ?? 'received-file';
       final safeName = _safeFileName(Uri.decodeComponent(encodedName));
-      final filePath = await _saveReceivedFile(safeName, request);
+      final savedFile = await _saveReceivedFile(safeName, request);
       _addReceivedItem(
         ReceivedItem(
           type: ReceivedItemType.file,
-          title: safeName,
-          detail: filePath,
+          title: savedFile.name,
+          detail: savedFile.path,
           receivedAt: DateTime.now(),
         ),
       );
@@ -249,7 +269,7 @@ class LanTransferService extends ChangeNotifier {
     await file.writeAsString(jsonEncode(data));
   }
 
-  Future<String> _saveReceivedFile(
+  Future<_SavedFile> _saveReceivedFile(
     String safeName,
     Stream<List<int>> bytes,
   ) async {
@@ -259,14 +279,28 @@ class LanTransferService extends ChangeNotifier {
 
     final directory = await getApplicationDocumentsDirectory();
     await directory.create(recursive: true);
-    final file = File('${directory.path}/$safeName');
+    final uniqueName = _uniqueFileName(directory, safeName);
+    final file = File('${directory.path}/$uniqueName');
     final sink = file.openWrite();
     await sink.addStream(bytes);
     await sink.close();
-    return file.path;
+    return _SavedFile(path: file.path, name: uniqueName);
   }
 
-  Future<String> _saveAndroidDownload(
+  String _uniqueFileName(Directory folder, String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    final base = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+    final ext = dotIndex > 0 ? fileName.substring(dotIndex) : '';
+    var candidate = fileName;
+    var index = 1;
+    while (File('${folder.path}/$candidate').existsSync()) {
+      candidate = '$base ($index)$ext';
+      index += 1;
+    }
+    return candidate;
+  }
+
+  Future<_SavedFile> _saveAndroidDownload(
     String safeName,
     Stream<List<int>> bytes,
   ) async {
@@ -290,7 +324,10 @@ class LanTransferService extends ChangeNotifier {
       if (publicPath == null || publicPath.isEmpty) {
         throw const FileSystemException('Android download path is unavailable');
       }
-      return publicPath;
+      return _SavedFile(
+        path: publicPath,
+        name: result?['name'] ?? _fileNameFromPath(publicPath, safeName),
+      );
     } finally {
       if (await tempFile.exists()) {
         await tempFile.delete();
@@ -313,6 +350,9 @@ class LanTransferService extends ChangeNotifier {
           continue;
         }
         final peer = LanPeer.fromHello(json, packet.address.address);
+        if (!_isValidPort(peer.port)) {
+          continue;
+        }
         _peers[peer.deviceId] = peer;
         notifyListeners();
       } catch (_) {
@@ -448,6 +488,10 @@ class LanTransferService extends ChangeNotifier {
     return !address.isLoopback && _isUsableLanAddressText(address.address);
   }
 
+  bool _isValidPort(int port) {
+    return port > 0 && port <= 65535;
+  }
+
   bool _isUsableLanAddressText(String address) {
     if (address == '0.0.0.0' ||
         address == '127.0.0.1' ||
@@ -510,4 +554,23 @@ class LanTransferService extends ChangeNotifier {
 
     return targets;
   }
+
+  String _fileNameFromPath(String path, String fallback) {
+    final normalized = path.replaceAll('\\', '/');
+    final index = normalized.lastIndexOf('/');
+    if (index < 0 || index == normalized.length - 1) {
+      return fallback;
+    }
+    return normalized.substring(index + 1);
+  }
+}
+
+class _SavedFile {
+  const _SavedFile({
+    required this.path,
+    required this.name,
+  });
+
+  final String path;
+  final String name;
 }

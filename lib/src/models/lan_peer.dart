@@ -33,12 +33,14 @@ class LanPeer {
   }
 
   factory LanPeer.fromHello(Map<String, Object?> json, String host) {
+    final rawPort = json['port'];
+    final port = rawPort is num && rawPort.isFinite ? rawPort.toInt() : 0;
     return LanPeer(
       deviceId: json['deviceId'] as String,
       deviceName: json['deviceName'] as String? ?? 'Unknown device',
       platform: json['platform'] as String? ?? 'unknown',
       host: host,
-      port: json['port'] as int,
+      port: port,
       lastSeen: DateTime.now(),
     );
   }

@@ -421,16 +421,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    final stillOnline = widget.service.peers.where((peer) {
-      return peer.deviceId == current.deviceId;
-    });
-    if (stillOnline.isEmpty) {
+    LanPeer? updated;
+    for (final peer in widget.service.peers) {
+      if (peer.deviceId == current.deviceId) {
+        updated = peer;
+        break;
+      }
+    }
+
+    if (updated == null) {
       setState(() {
         _selectedPeer = null;
         _sendState = _SendState.warning;
         _status = '目标设备已离线';
       });
       return;
+    }
+
+    if (updated.host != current.host ||
+        updated.port != current.port ||
+        updated.deviceName != current.deviceName ||
+        updated.platform != current.platform) {
+      setState(() {
+        _selectedPeer = updated;
+      });
     }
   }
 }
@@ -1241,7 +1255,7 @@ class _ReceivedTile extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _formatTime(item.receivedAt),
+                        formatReceivedTime(item.receivedAt),
                         style: TextStyle(
                           color: colors.onSurfaceVariant,
                           fontSize: 12,
@@ -1464,8 +1478,17 @@ IconData _platformIcon(String platform) {
   return Icons.devices;
 }
 
-String _formatTime(DateTime value) {
+String formatReceivedTime(DateTime value, {DateTime? now}) {
+  final reference = now ?? DateTime.now();
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
+  final sameDay = value.year == reference.year &&
+      value.month == reference.month &&
+      value.day == reference.day;
+  if (sameDay) {
+    return '$hour:$minute';
+  }
+  final month = value.month.toString().padLeft(2, '0');
+  final day = value.day.toString().padLeft(2, '0');
+  return '$month-$day $hour:$minute';
 }

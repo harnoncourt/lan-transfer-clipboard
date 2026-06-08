@@ -22,6 +22,7 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 - 选择本地文件并发送给选中设备。
 - 接收剪贴板文本和文件。
 - 将收到的文件保存到平台接收目录；Android 保存到系统下载目录 `Download/LAN Transfer`。
+- 接收同名文件时不会覆盖旧文件，会自动追加 `(1)`、`(2)` 后缀。
 - 在界面中展示在线设备、发送状态和接收记录。
 - 接收记录会持久化保存，应用重新打开后收件箱仍显示历史内容。
 - 收件箱默认显示最近 20 条，历史较多时可以通过“显示更多”继续展开。
@@ -36,6 +37,7 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 - `file_picker`：跨平台选择文件。
 - `path_provider`：获取平台应用目录。
 - `crypto`：生成稳定设备标识。
+- HTTP 发送使用连接超时和请求级超时，避免远端无响应时长期挂起。
 
 ## 快速开始
 
