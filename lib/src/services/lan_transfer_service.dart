@@ -17,10 +17,12 @@ class LanTransferService extends ChangeNotifier {
   List<String> _localAddresses = const [];
 
   RawDatagramSocket? _discoverySocket;
+  StreamSubscription<RawSocketEvent>? _discoverySubscription;
   HttpServer? _httpServer;
   Timer? _heartbeatTimer;
   Timer? _pruneTimer;
   late final DeviceIdentity _identity;
+  bool _started = false;
 
   List<LanPeer> get peers {
     final values = _peers.values.toList()
@@ -43,34 +45,52 @@ class LanTransferService extends ChangeNotifier {
   }
 
   Future<void> start() async {
+    if (_started) {
+      return;
+    }
+
     _identity = await DeviceIdentity.load();
     _localAddresses = await _loadLocalAddresses();
     _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     _serveHttp(_httpServer!);
+    await _bindDiscoverySocket();
 
-    _discoverySocket = await RawDatagramSocket.bind(
-      InternetAddress.anyIPv4,
-      discoveryPort,
-      reuseAddress: true,
-      reusePort: true,
-    );
-    _discoverySocket!.broadcastEnabled = true;
-    _discoverySocket!.listen(_handleDiscoveryEvent);
-
-    _sendHello();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _sendHello();
-    });
-    _pruneTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _prunePeers();
-    });
+    _started = true;
+    _startTimers();
+    _sendHelloBurst();
   }
 
   Future<void> stop() async {
+    _started = false;
     _heartbeatTimer?.cancel();
     _pruneTimer?.cancel();
-    _discoverySocket?.close();
-    await _httpServer?.close(force: true);
+    _heartbeatTimer = null;
+    _pruneTimer = null;
+    await _discoverySubscription?.cancel();
+    _discoverySubscription = null;
+    final discoverySocket = _discoverySocket;
+    _discoverySocket = null;
+    discoverySocket?.close();
+    final httpServer = _httpServer;
+    _httpServer = null;
+    await httpServer?.close(force: true);
+  }
+
+  void pauseDiscoveryPruning() {
+    _pruneTimer?.cancel();
+    _pruneTimer = null;
+  }
+
+  Future<void> resumeDiscovery() async {
+    if (!_started) {
+      return;
+    }
+
+    _localAddresses = await _loadLocalAddresses();
+    await _bindDiscoverySocket(restart: true);
+    _startTimers();
+    _sendHelloBurst();
+    notifyListeners();
   }
 
   Future<void> sendClipboard(LanPeer peer, String text) async {
@@ -202,7 +222,50 @@ class LanTransferService extends ChangeNotifier {
     }
   }
 
+  Future<void> _bindDiscoverySocket({bool restart = false}) async {
+    if (!restart && _discoverySocket != null) {
+      return;
+    }
+
+    await _discoverySubscription?.cancel();
+    _discoverySubscription = null;
+    final previousSocket = _discoverySocket;
+    _discoverySocket = null;
+    previousSocket?.close();
+
+    final socket = await RawDatagramSocket.bind(
+      InternetAddress.anyIPv4,
+      discoveryPort,
+      reuseAddress: true,
+      reusePort: true,
+    );
+    socket.broadcastEnabled = true;
+    _discoverySocket = socket;
+    _discoverySubscription = socket.listen(_handleDiscoveryEvent);
+  }
+
+  void _startTimers() {
+    _heartbeatTimer?.cancel();
+    _pruneTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _sendHello();
+    });
+    _pruneTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _prunePeers();
+    });
+  }
+
+  void _sendHelloBurst() {
+    _sendHello();
+    Timer(const Duration(milliseconds: 700), _sendHello);
+    Timer(const Duration(milliseconds: 1600), _sendHello);
+  }
+
   void _sendHello() {
+    if (!_started) {
+      return;
+    }
+
     final socket = _discoverySocket;
     if (socket == null) {
       return;
