@@ -86,6 +86,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onCopyText: _copyReceivedText,
                         onOpenFile: _openReceivedFile,
                         onRevealFile: _revealReceivedFile,
+                        openFolderTooltip: _openFolderTooltip(),
+                        revealFileTooltip: _revealFileTooltip(),
                       ),
                     ),
                   ],
@@ -126,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               onCopyText: _copyReceivedText,
                               onOpenFile: _openReceivedFile,
                               onRevealFile: _revealReceivedFile,
+                              openFolderTooltip: _openFolderTooltip(),
+                              revealFileTooltip: _revealFileTooltip(),
                               framed: true,
                             ),
                           ),
@@ -166,6 +170,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onCopyText: _copyReceivedText,
                       onOpenFile: _openReceivedFile,
                       onRevealFile: _revealReceivedFile,
+                      openFolderTooltip: _openFolderTooltip(),
+                      revealFileTooltip: _revealFileTooltip(),
                       framed: true,
                     ),
                   ),
@@ -261,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final directory = await widget.service.getReceivedDirectory();
-    await _runOpenCommand([directory.path], '已打开收件目录');
+    await _openPath(directory.path, '已打开收件目录');
   }
 
   Future<void> _copyReceivedText(ReceivedItem item) async {
@@ -280,23 +286,81 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _revealReceivedFile(ReceivedItem item) async {
-    await _runOpenCommand(['-R', item.detail], '已在 Finder 中显示');
+    await _revealPath(item.detail);
   }
 
-  Future<void> _runOpenCommand(List<String> arguments, String success) async {
-    if (!Platform.isMacOS) {
-      _showMessage('当前平台暂不支持此操作');
+  Future<void> _openPath(String path, String success) async {
+    if (Platform.isMacOS) {
+      await _runPlatformCommand('open', [path], success);
       return;
     }
 
-    final result = await Process.run('open', arguments);
-    if (result.exitCode == 0) {
-      _showMessage(success);
+    if (Platform.isWindows) {
+      await _runPlatformCommand('explorer.exe', [path], success);
       return;
     }
 
-    final error = result.stderr.toString().trim();
-    _showMessage(error.isEmpty ? '操作失败' : error);
+    _showMessage('当前平台暂不支持此操作');
+  }
+
+  Future<void> _revealPath(String path) async {
+    if (Platform.isMacOS) {
+      await _runPlatformCommand('open', ['-R', path], '已在 Finder 中显示');
+      return;
+    }
+
+    if (Platform.isWindows) {
+      await _runPlatformCommand(
+          'explorer.exe', ['/select,$path'], '已在资源管理器中显示');
+      return;
+    }
+
+    _showMessage('当前平台暂不支持此操作');
+  }
+
+  Future<void> _runPlatformCommand(
+    String executable,
+    List<String> arguments,
+    String success,
+  ) async {
+    try {
+      final result = await Process.run(executable, arguments);
+      if (result.exitCode == 0) {
+        _showMessage(success);
+        return;
+      }
+
+      final error = result.stderr.toString().trim();
+      _showMessage(error.isEmpty ? '操作失败' : error);
+    } on ProcessException catch (error) {
+      _showMessage(error.message);
+    }
+  }
+
+  String _fileManagerName() {
+    if (Platform.isMacOS) {
+      return 'Finder';
+    }
+    if (Platform.isWindows) {
+      return '资源管理器';
+    }
+    return '文件管理器';
+  }
+
+  String _revealFileTooltip() {
+    final fileManager = _fileManagerName();
+    if (fileManager == 'Finder') {
+      return '在 Finder 中显示';
+    }
+    return '在$fileManager中显示';
+  }
+
+  String _openFolderTooltip() {
+    final fileManager = _fileManagerName();
+    if (fileManager == 'Finder') {
+      return '打开收件目录';
+    }
+    return '在$fileManager中打开收件目录';
   }
 
   void _showMessage(String message) {
@@ -545,6 +609,8 @@ class _ReceivedPanel extends StatelessWidget {
     required this.onCopyText,
     required this.onOpenFile,
     required this.onRevealFile,
+    required this.openFolderTooltip,
+    required this.revealFileTooltip,
     this.framed = false,
   });
 
@@ -553,6 +619,8 @@ class _ReceivedPanel extends StatelessWidget {
   final ValueChanged<ReceivedItem> onCopyText;
   final ValueChanged<ReceivedItem> onOpenFile;
   final ValueChanged<ReceivedItem> onRevealFile;
+  final String openFolderTooltip;
+  final String revealFileTooltip;
   final bool framed;
 
   @override
@@ -571,7 +639,7 @@ class _ReceivedPanel extends StatelessWidget {
                 _CountBadge(value: items.length),
                 const SizedBox(width: 8),
                 Tooltip(
-                  message: '打开收件目录',
+                  message: openFolderTooltip,
                   child: IconButton.filledTonal(
                     visualDensity: VisualDensity.compact,
                     onPressed: onOpenFolder,
@@ -598,6 +666,7 @@ class _ReceivedPanel extends StatelessWidget {
                         onCopyText: onCopyText,
                         onOpenFile: onOpenFile,
                         onRevealFile: onRevealFile,
+                        revealFileTooltip: revealFileTooltip,
                       );
                     },
                   ),
@@ -959,12 +1028,14 @@ class _ReceivedTile extends StatelessWidget {
     required this.onCopyText,
     required this.onOpenFile,
     required this.onRevealFile,
+    required this.revealFileTooltip,
   });
 
   final ReceivedItem item;
   final ValueChanged<ReceivedItem> onCopyText;
   final ValueChanged<ReceivedItem> onOpenFile;
   final ValueChanged<ReceivedItem> onRevealFile;
+  final String revealFileTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -1041,7 +1112,7 @@ class _ReceivedTile extends StatelessWidget {
                     onPressed: () => onOpenFile(item),
                   ),
                   _TileAction(
-                    tooltip: '在 Finder 中显示',
+                    tooltip: revealFileTooltip,
                     icon: Icons.drive_file_move_outline,
                     onPressed: () => onRevealFile(item),
                   ),
