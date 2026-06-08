@@ -293,6 +293,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openReceivedFile(ReceivedItem item) async {
+    if (item.type == ReceivedItemType.file &&
+        !await File(item.detail).exists()) {
+      _showMessage('文件不存在，可能已被移动或删除');
+      return;
+    }
+
     final result = await OpenFilex.open(item.detail);
     if (result.type == ResultType.done) {
       _showMessage('已打开文件');
@@ -303,6 +309,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _revealReceivedFile(ReceivedItem item) async {
+    if (!await File(item.detail).exists()) {
+      _showMessage('文件不存在，可能已被移动或删除');
+      return;
+    }
+
     await _revealPath(item.detail);
   }
 
@@ -328,7 +339,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (Platform.isWindows) {
       await _runPlatformCommand(
-          'explorer.exe', ['/select,$path'], '已在资源管理器中显示');
+        'explorer.exe',
+        ['/select,"${File(path).absolute.path}"'],
+        '已在资源管理器中显示',
+      );
       return;
     }
 
