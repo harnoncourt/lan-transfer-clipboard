@@ -2,6 +2,16 @@
 
 LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域网文件与剪贴板传输应用。项目采用 Flutter 构建统一客户端，当前 MVP 使用 UDP 广播发现局域网设备，并通过本机 HTTP 服务传输剪贴板文本和文件。
 
+## 开源状态
+
+本项目以 MIT License 开源，欢迎 issue、讨论和 pull request。
+
+- 许可证：[MIT](LICENSE)
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 行为准则：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- 安全报告：[SECURITY.md](SECURITY.md)
+- 最新发布：[GitHub Releases](https://github.com/harnoncourt/lan-transfer-clipboard/releases)
+
 ## 当前状态
 
 当前仓库已经包含 Flutter 应用代码、核心传输服务和完整项目文档。开发环境状态如下：
@@ -34,7 +44,7 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 
 - Flutter：跨平台 UI 和应用壳。
 - Dart `dart:io`：UDP、HTTP server、HTTP client、文件读写。
-- `file_picker`：跨平台选择文件。
+- `file_selector`：跨平台选择文件。
 - `path_provider`：获取平台应用目录。
 - `crypto`：生成稳定设备标识。
 - HTTP 发送使用连接超时和请求级超时，避免远端无响应时长期挂起。
@@ -53,10 +63,14 @@ Windows 云端打包 workflow 已验证通过，产物可在 GitHub Actions 的 
 
 [Build Windows](https://github.com/harnoncourt/lan-transfer-clipboard/actions/workflows/build-windows.yml)
 
-本地已下载的 Windows ZIP：
+已发布版本可从 GitHub Releases 下载：
+
+[LAN Transfer releases](https://github.com/harnoncourt/lan-transfer-clipboard/releases)
+
+本地构建产物默认放在：
 
 ```text
-dist/LAN-Transfer-0.1.0-windows-x64.zip
+dist/
 ```
 
 如果需要生成完整平台目录：
@@ -101,3 +115,20 @@ flutter run -d macos
 - UDP 广播在部分网络、iOS 环境或隔离 Wi-Fi 下可能不可用；Windows 还需要允许专用网络防火墙访问。
 
 生产化前请优先完成 [安全模型](docs/security.md) 中的 P0/P1 项。
+
+## 参与贡献
+
+欢迎提交 bug report、feature request 和 pull request。提交 PR 前请至少运行：
+
+```bash
+flutter analyze
+flutter test
+```
+
+如果变更影响协议、平台行为、安全模型或发布流程，请同步更新 `docs/` 中的对应文档。
+
+安全问题请不要直接公开提交 issue，请参考 [SECURITY.md](SECURITY.md) 私下报告。
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
