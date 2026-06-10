@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +22,7 @@ class LanTransferService extends ChangeNotifier {
 
   static const int discoveryPort = 45671;
   static const int _maxStoredReceivedItems = 300;
+  static const int _maxClipboardBytes = 10 * 1024 * 1024;
   static const MethodChannel _platformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/files');
   static const MethodChannel _androidPlatformChannel =
@@ -151,8 +153,9 @@ class LanTransferService extends ChangeNotifier {
       request.headers.contentType = ContentType.binary;
       request.headers.set('X-File-Name', Uri.encodeComponent(fileName));
       request.contentLength = fileLength;
-      await request.addStream(bytes).timeout(_fileTimeout);
-      final response = await request.close().timeout(_fileTimeout);
+      final uploadTimeout = _uploadTimeout(fileLength);
+      await request.addStream(bytes).timeout(uploadTimeout);
+      final response = await request.close().timeout(uploadTimeout);
       if (response.statusCode >= 300) {
         throw HttpException('File send failed: ${response.statusCode}');
       }
@@ -161,15 +164,32 @@ class LanTransferService extends ChangeNotifier {
     }
   }
 
+  Duration _uploadTimeout(int fileLength) {
+    // Allow at least 1 MB/s before declaring an upload stalled, so large
+    // files over slow links are not cut off by the base timeout.
+    final transferSeconds = (fileLength / (1024 * 1024)).ceil();
+    return _fileTimeout + Duration(seconds: transferSeconds);
+  }
+
   void _serveHttp(HttpServer server) {
     unawaited(() async {
       await for (final request in server) {
         try {
           await _handleHttpRequest(request);
         } catch (error) {
-          request.response.statusCode = HttpStatus.internalServerError;
-          request.response.write(error.toString());
-          await request.response.close();
+          // Never let a failed handler (or a failed error response) escape,
+          // otherwise the await-for loop ends and the server stops serving.
+          try {
+            request.response.statusCode = HttpStatus.internalServerError;
+            request.response.write(error.toString());
+          } catch (_) {
+            // Response already committed; nothing more we can send.
+          }
+          try {
+            await request.response.close();
+          } catch (_) {
+            // Connection already closed.
+          }
         }
       }
     }());
@@ -184,7 +204,12 @@ class LanTransferService extends ChangeNotifier {
     }
 
     if (request.method == 'POST' && request.uri.path == '/clipboard') {
-      final body = await utf8.decoder.bind(request).join();
+      final body = await _readBodyWithLimit(request, _maxClipboardBytes);
+      if (body == null) {
+        request.response.statusCode = HttpStatus.requestEntityTooLarge;
+        await request.response.close();
+        return;
+      }
       final json = jsonDecode(body) as Map<String, Object?>;
       final text = json['text'] as String? ?? '';
       _addReceivedItem(
@@ -220,6 +245,20 @@ class LanTransferService extends ChangeNotifier {
 
     request.response.statusCode = HttpStatus.notFound;
     await request.response.close();
+  }
+
+  Future<String?> _readBodyWithLimit(
+    Stream<List<int>> stream,
+    int maxBytes,
+  ) async {
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in stream) {
+      builder.add(chunk);
+      if (builder.length > maxBytes) {
+        return null;
+      }
+    }
+    return utf8.decode(builder.takeBytes());
   }
 
   void _addReceivedItem(ReceivedItem item) {
@@ -281,10 +320,27 @@ class LanTransferService extends ChangeNotifier {
     await directory.create(recursive: true);
     final uniqueName = _uniqueFileName(directory, safeName);
     final file = File('${directory.path}/$uniqueName');
-    final sink = file.openWrite();
-    await sink.addStream(bytes);
-    await sink.close();
+    await _writeStreamToFile(file, bytes);
     return _SavedFile(path: file.path, name: uniqueName);
+  }
+
+  Future<void> _writeStreamToFile(File file, Stream<List<int>> bytes) async {
+    final sink = file.openWrite();
+    try {
+      await sink.addStream(bytes);
+      await sink.close();
+    } catch (_) {
+      // Do not leave a partially written file behind when the transfer fails.
+      try {
+        await sink.close();
+      } catch (_) {}
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   String _uniqueFileName(Directory folder, String fileName) {
@@ -307,9 +363,7 @@ class LanTransferService extends ChangeNotifier {
     final tempDirectory = await getTemporaryDirectory();
     await tempDirectory.create(recursive: true);
     final tempFile = File('${tempDirectory.path}/$safeName');
-    final sink = tempFile.openWrite();
-    await sink.addStream(bytes);
-    await sink.close();
+    await _writeStreamToFile(tempFile, bytes);
 
     try {
       final result = await _platformChannel.invokeMapMethod<String, String>(
@@ -440,7 +494,10 @@ class LanTransferService extends ChangeNotifier {
 
   String _safeFileName(String value) {
     final cleaned = value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-    return cleaned.isEmpty ? 'received-file' : cleaned;
+    if (cleaned.isEmpty || cleaned == '.' || cleaned == '..') {
+      return 'received-file';
+    }
+    return cleaned;
   }
 
   Future<List<String>> _loadLocalAddresses() async {

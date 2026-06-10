@@ -324,7 +324,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     if (Platform.isWindows) {
-      await _runPlatformCommand('explorer.exe', [path], success);
+      await _runPlatformCommand(
+        'explorer.exe',
+        [path],
+        success,
+        ignoreExitCode: true,
+      );
       return;
     }
 
@@ -342,6 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         'explorer.exe',
         ['/select,"${File(path).absolute.path}"'],
         '已在资源管理器中显示',
+        ignoreExitCode: true,
       );
       return;
     }
@@ -352,11 +358,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _runPlatformCommand(
     String executable,
     List<String> arguments,
-    String success,
-  ) async {
+    String success, {
+    // explorer.exe reports exit code 1 even on success, so callers that
+    // already validated the target can opt out of exit-code checking.
+    bool ignoreExitCode = false,
+  }) async {
     try {
       final result = await Process.run(executable, arguments);
-      if (result.exitCode == 0) {
+      if (result.exitCode == 0 || ignoreExitCode) {
         _showMessage(success);
         return;
       }
