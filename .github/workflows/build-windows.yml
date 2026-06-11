@@ -42,11 +42,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive `
             -Path "build\windows\x64\runner\Release\*" `
-            -DestinationPath "dist\LAN-Transfer-0.1.0-windows-x64.zip" `
+            -DestinationPath "dist\LAN-Transfer-0.1.1-windows-x64.zip" `
             -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LAN-Transfer-0.1.0-windows-x64
-          path: dist/LAN-Transfer-0.1.0-windows-x64.zip
+          name: LAN-Transfer-0.1.1-windows-x64
+          path: dist/LAN-Transfer-0.1.1-windows-x64.zip
