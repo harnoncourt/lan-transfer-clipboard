@@ -468,8 +468,9 @@ class LanTransferService extends ChangeNotifier {
     for (final target in _discoveryTargets()) {
       try {
         socket.send(bytes, InternetAddress(target), discoveryPort);
-      } on SocketException {
-        // Some platforms reject specific broadcast addresses. Try the others.
+      } catch (_) {
+        // Some platforms reject specific broadcast addresses or have no route
+        // until local-network access is granted. Try the remaining targets.
       }
     }
   }
