@@ -21,12 +21,13 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 - Android toolchain 已配置，Android licenses 已接受。
 - CocoaPods 1.16.2 已安装。
 - Xcode 26.5 已安装并被系统选中。
-- iOS Simulator runtime 尚未安装，`xcodebuild -downloadPlatform iOS` 当前因 Apple MobileAsset 网络错误下载失败。
+- iOS Simulator runtime（iOS 26.5）已安装，iPhone/iPad 模拟器可用。
+- iOS 平台工程已生成并验证：模拟器与 iPad 真机均可构建安装。
 
 ## 已实现能力
 
 - 启动本机局域网传输服务。
-- 每 3 秒通过 UDP limited broadcast 和本机网段 directed broadcast 发送设备心跳。
+- 每 3 秒通过 UDP limited broadcast 和本机网段 directed broadcast 发送设备心跳（iOS 上仅使用网段 directed broadcast）。
 - 自动发现同一局域网内其他在线设备。
 - 向选中设备发送剪贴板文本。
 - 选择本地文件并发送给选中设备。

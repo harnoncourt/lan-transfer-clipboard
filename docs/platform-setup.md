@@ -9,7 +9,7 @@ flutter pub get
 
 ## 当前本机环境
 
-截至 2026-06-08，当前机器状态：
+截至 2026-06-11，当前机器状态：
 
 - Flutter 3.44.1：已安装。
 - Dart 3.12.1：已安装。
@@ -17,7 +17,8 @@ flutter pub get
 - Android licenses：已接受。
 - CocoaPods 1.16.2：已安装。
 - Xcode 26.5：已安装，`xcode-select` 已指向 `/Applications/Xcode.app/Contents/Developer`。
-- iOS Simulator runtime：尚未安装，当前命令行下载遇到 Apple MobileAsset 网络错误。
+- iOS Simulator runtime（iOS 26.5）：已安装，iPhone/iPad 模拟器可用。
+- iOS 真机构建：已验证，可通过 `flutter build ios --release` + `flutter install` 安装到 iPad。
 
 ## macOS
 
@@ -63,22 +64,51 @@ xcodebuild -downloadPlatform iOS
 
 ### Local Network 权限
 
-在 `ios/Runner/Info.plist` 中加入：
+`ios/Runner/Info.plist` 已配置：
 
 ```xml
 <key>NSLocalNetworkUsageDescription</key>
-<string>Discover and transfer files to nearby devices on your local network.</string>
+<string>需要局域网访问权限以发现并连接同一网络中的其他设备。</string>
 <key>NSBonjourServices</key>
 <array>
-  <string>_lan-transfer._tcp</string>
+  <string>_lan-transfer._udp</string>
 </array>
 ```
 
 当前 MVP 使用 UDP 广播，不依赖 Bonjour。声明 Bonjour service 是为了后续迁移 mDNS/Bonjour，也让 iOS Local Network 权限说明更清晰。
 
+真机首次启动会弹出本地网络权限请求，必须允许，否则设备发现一直显示 `0 在线`。误拒后可在 设置 → 隐私与安全性 → 本地网络 中重新开启。
+
+### 应用生命周期
+
+当前 `AppDelegate.swift` 采用手动创建 `FlutterEngine` 和窗口的传统（非 UIScene）生命周期，`Info.plist` 中没有 `UIApplicationSceneManifest`。`SceneDelegate.swift` 仍在工程中但未被使用。注意：Apple 已宣布未来 iOS SDK 将强制 scene-based 生命周期，后续升级 Flutter/Xcode 大版本时此处可能需要迁回 UIScene 模板。
+
+### 发现广播差异
+
+iOS 上发送 limited broadcast（`255.255.255.255`）会被系统拒绝，因此 iOS 端只向本机网段的 directed broadcast 地址（如 `192.168.1.255`）发送心跳。其他平台两者都发。
+
+### 设备名
+
+iOS 设备名通过原生 `UIDevice.current.name` 方法通道获取。iOS/iPadOS 16+ 出于隐私限制只返回通用名称（`iPad`、`iPhone`），获取用户自定义设备名需要申请 Apple 的 `user-assigned-device-name` entitlement。通道不可用时回退为 `iOS device`。
+
+### 真机安装
+
+工程已配置开发团队签名（`DEVELOPMENT_TEAM`）。连接 iPad/iPhone 后执行：
+
+```bash
+flutter build ios --release
+flutter install -d <device-id>
+```
+
+注意：
+
+- 首次安装后如提示“不受信任的开发者”，在 设置 → 通用 → VPN 与设备管理 中信任证书。
+- 个人开发证书签名的应用 7 天过期，需重新安装；付费开发者账号为 1 年。
+- 开源发布前建议把个人 `DEVELOPMENT_TEAM` 从 pbxproj 中移除，改用本地 xcconfig 覆盖。
+
 ### 后台限制
 
-iOS 对后台常驻网络服务限制较严格。当前 MVP 设计为前台运行优先。后续如果需要后台接收，应结合：
+iOS 对后台常驻网络服务限制较严格。当前 MVP 设计为前台运行优先。应用进入后台会暂停离线清理，回到前台后重新绑定 discovery socket 并连发心跳。后续如果需要后台接收，应结合：
 
 - Background Modes。
 - 本地通知。

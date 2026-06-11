@@ -71,7 +71,9 @@ flutter run -d macos
 
 ## 当前环境说明
 
-当前机器已经安装 Xcode 26.5，Flutter 能识别 Xcode。若需要 iOS 模拟器，还需要下载 iOS Simulator runtime：
+当前机器已经安装 Xcode 26.5 和 iOS Simulator runtime（iOS 26.5），Flutter 能识别 Xcode，iPhone/iPad 模拟器和 iOS 真机构建均可用。
+
+如果在新机器上缺少 Simulator runtime，可执行：
 
 ```bash
 xcodebuild -downloadPlatform iOS
