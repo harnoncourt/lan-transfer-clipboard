@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'src/services/lan_transfer_service.dart';
@@ -7,9 +9,19 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final service = LanTransferService();
-  await service.start();
-
   runApp(LanTransferApp(service: service));
+  unawaited(
+    service.start().catchError((Object error, StackTrace stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'lan_transfer_clipboard',
+          context: ErrorDescription('starting LAN transfer service'),
+        ),
+      );
+    }),
+  );
 }
 
 class LanTransferApp extends StatelessWidget {

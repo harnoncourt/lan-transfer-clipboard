@@ -41,7 +41,7 @@ class LanTransferService extends ChangeNotifier {
   HttpServer? _httpServer;
   Timer? _heartbeatTimer;
   Timer? _pruneTimer;
-  late final DeviceIdentity _identity;
+  DeviceIdentity? _identity;
   bool _started = false;
 
   List<LanPeer> get peers {
@@ -54,9 +54,9 @@ class LanTransferService extends ChangeNotifier {
 
   int? get localPort => _httpServer?.port;
 
-  String get localDeviceName => _identity.deviceName;
+  String get localDeviceName => _identity?.deviceName ?? 'LAN device';
 
-  String get localPlatform => _identity.platform;
+  String get localPlatform => _identity?.platform ?? Platform.operatingSystem;
 
   List<String> get localAddresses => List.unmodifiable(_localAddresses);
 
@@ -73,7 +73,8 @@ class LanTransferService extends ChangeNotifier {
       return;
     }
 
-    _identity = await DeviceIdentity.load();
+    final identity = await DeviceIdentity.load();
+    _identity = identity;
     await _loadReceivedItems();
     _localAddresses = await _loadLocalAddresses();
     _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, 0);
@@ -83,6 +84,7 @@ class LanTransferService extends ChangeNotifier {
     _started = true;
     _startTimers();
     _sendHelloBurst();
+    notifyListeners();
   }
 
   Future<void> stop() async {
@@ -400,7 +402,8 @@ class LanTransferService extends ChangeNotifier {
         final packet = datagram!;
         final json =
             jsonDecode(utf8.decode(packet.data)) as Map<String, Object?>;
-        if (json['type'] != 'hello' || json['deviceId'] == _identity.deviceId) {
+        if (json['type'] != 'hello' ||
+            json['deviceId'] == _identity?.deviceId) {
           continue;
         }
         final peer = LanPeer.fromHello(json, packet.address.address);
@@ -478,9 +481,9 @@ class LanTransferService extends ChangeNotifier {
   Map<String, Object?> _helloPayload() {
     return {
       'type': 'hello',
-      'deviceId': _identity.deviceId,
-      'deviceName': _identity.deviceName,
-      'platform': _identity.platform,
+      'deviceId': _identity?.deviceId ?? 'unknown',
+      'deviceName': localDeviceName,
+      'platform': localPlatform,
       'port': _httpServer!.port,
       'version': 1,
     };
