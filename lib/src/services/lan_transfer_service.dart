@@ -595,7 +595,10 @@ class LanTransferService extends ChangeNotifier {
   }
 
   Set<String> _discoveryTargets() {
-    final targets = <String>{'255.255.255.255'};
+    final targets = <String>{};
+    if (!Platform.isIOS) {
+      targets.add('255.255.255.255');
+    }
 
     for (final address in _localAddresses) {
       final parts = address.split('.');

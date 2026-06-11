@@ -47,7 +47,7 @@ class DeviceIdentity {
   }
 
   static Future<String> _loadDeviceName() async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS) {
       try {
         final name = await _platformChannel.invokeMethod<String>(
           'getDeviceName',
@@ -60,6 +60,10 @@ class DeviceIdentity {
       } on MissingPluginException {
         // Fall back to Dart hostname below.
       }
+    }
+
+    if (Platform.isIOS) {
+      return 'iOS device';
     }
 
     final hostname = Platform.localHostname.trim();

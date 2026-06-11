@@ -10,18 +10,20 @@ Future<void> main() async {
 
   final service = LanTransferService();
   runApp(LanTransferApp(service: service));
-  unawaited(
-    service.start().catchError((Object error, StackTrace stackTrace) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'lan_transfer_clipboard',
-          context: ErrorDescription('starting LAN transfer service'),
-        ),
-      );
-    }),
-  );
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(
+      service.start().catchError((Object error, StackTrace stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'lan_transfer_clipboard',
+            context: ErrorDescription('starting LAN transfer service'),
+          ),
+        );
+      }),
+    );
+  });
 }
 
 class LanTransferApp extends StatelessWidget {
