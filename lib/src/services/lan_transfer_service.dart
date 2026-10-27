@@ -23,9 +23,9 @@ class LanTransferService extends ChangeNotifier {
   static const int discoveryPort = 45671;
   static const int _maxStoredReceivedItems = 300;
   static const int _maxClipboardBytes = 10 * 1024 * 1024;
-  static const MethodChannel _platformChannel =
+  static const MethodChannel _discoveryPlatformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/files');
-  static const MethodChannel _androidPlatformChannel =
+  static const MethodChannel _platformChannel =
       MethodChannel('app.local.lan_transfer_clipboard/platform');
 
   final Duration _connectionTimeout;
@@ -35,6 +35,7 @@ class LanTransferService extends ChangeNotifier {
   final Map<String, LanPeer> _peers = {};
   final List<ReceivedItem> _receivedItems = [];
   List<String> _localAddresses = const [];
+  List<String> _iosBroadcastAddresses = const [];
 
   RawDatagramSocket? _discoverySocket;
   StreamSubscription<RawSocketEvent>? _discoverySubscription;
@@ -77,6 +78,7 @@ class LanTransferService extends ChangeNotifier {
     _identity = identity;
     await _loadReceivedItems();
     _localAddresses = await _loadLocalAddresses();
+    _iosBroadcastAddresses = await _loadIosBroadcastAddresses();
     _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     _serveHttp(_httpServer!);
     await _bindDiscoverySocket();
@@ -114,6 +116,7 @@ class LanTransferService extends ChangeNotifier {
     }
 
     _localAddresses = await _loadLocalAddresses();
+    _iosBroadcastAddresses = await _loadIosBroadcastAddresses();
     await _bindDiscoverySocket(restart: true);
     _startTimers();
     _sendHelloBurst();
@@ -531,7 +534,7 @@ class LanTransferService extends ChangeNotifier {
     }
 
     try {
-      final address = await _androidPlatformChannel.invokeMethod<String>(
+      final address = await _discoveryPlatformChannel.invokeMethod<String>(
         'getWifiIpv4Address',
       );
       if (address != null && _isUsableLanAddressText(address)) {
@@ -543,6 +546,28 @@ class LanTransferService extends ChangeNotifier {
       // Fall back to NetworkInterface below.
     }
     return null;
+  }
+
+  Future<List<String>> _loadIosBroadcastAddresses() async {
+    if (!Platform.isIOS) {
+      return const [];
+    }
+
+    try {
+      final addresses =
+          await _discoveryPlatformChannel.invokeListMethod<String>(
+        'getBroadcastAddresses',
+      );
+      return (addresses ?? const <String>[])
+          .where(_isUsableLanAddressText)
+          .toSet()
+          .toList()
+        ..sort();
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
   }
 
   bool _isUsableLanAddress(InternetAddress address) {
@@ -595,6 +620,10 @@ class LanTransferService extends ChangeNotifier {
   }
 
   Set<String> _discoveryTargets() {
+    if (Platform.isIOS && _iosBroadcastAddresses.isNotEmpty) {
+      return _iosBroadcastAddresses.toSet();
+    }
+
     final targets = <String>{};
     if (!Platform.isIOS) {
       targets.add('255.255.255.255');

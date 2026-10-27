@@ -75,7 +75,7 @@ flutter build appbundle
 - 前台运行时互传成功。
 - iPad 上验证三栏宽屏布局正常。
 - 设备名正确显示为 `iPad`/`iPhone`（通用名称为 iOS 16+ 预期行为）。
-- 发布前从 pbxproj 移除个人 `DEVELOPMENT_TEAM`。
+- 确认 pbxproj 未提交个人 `DEVELOPMENT_TEAM`，本地签名通过被忽略的 `ios/Flutter/Local.xcconfig` 或 Xcode Team 配置提供。
 - App Store 隐私说明与实际行为一致。
 
 构建命令：

@@ -18,7 +18,7 @@ flutter pub get
 - CocoaPods 1.16.2：已安装。
 - Xcode 26.5：已安装，`xcode-select` 已指向 `/Applications/Xcode.app/Contents/Developer`。
 - iOS Simulator runtime（iOS 26.5）：已安装，iPhone/iPad 模拟器可用。
-- iOS 真机构建：已验证，可通过 `flutter build ios --release` + `flutter install` 安装到 iPad。
+- iOS 真机构建：最低版本为 iOS 15；安装前需要配置本地开发签名。
 
 ## macOS
 
@@ -85,7 +85,7 @@ xcodebuild -downloadPlatform iOS
 
 ### 发现广播差异
 
-iOS 上发送 limited broadcast（`255.255.255.255`）会被系统拒绝，因此 iOS 端只向本机网段的 directed broadcast 地址（如 `192.168.1.255`）发送心跳。其他平台两者都发。
+iOS 上发送 limited broadcast（`255.255.255.255`）会被系统拒绝，因此 iOS 端从系统网络接口读取子网掩码并计算 directed broadcast 地址。其他平台仍同时发送 limited broadcast 和 `/24` directed broadcast。原生接口不可用时，iOS 才回退到 `/24` 推导。
 
 ### 设备名
 
@@ -93,7 +93,13 @@ iOS 设备名通过原生 `UIDevice.current.name` 方法通道获取。iOS/iPadO
 
 ### 真机安装
 
-工程已配置开发团队签名（`DEVELOPMENT_TEAM`）。连接 iPad/iPhone 后执行：
+开源工程不包含个人 `DEVELOPMENT_TEAM`。在 Xcode 的 Runner target 中选择自己的 Team，或创建被 Git 忽略的 `ios/Flutter/Local.xcconfig`：
+
+```xcconfig
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+```
+
+连接 iPad/iPhone 后执行：
 
 ```bash
 flutter build ios --release
@@ -104,7 +110,7 @@ flutter install -d <device-id>
 
 - 首次安装后如提示“不受信任的开发者”，在 设置 → 通用 → VPN 与设备管理 中信任证书。
 - 个人开发证书签名的应用 7 天过期，需重新安装；付费开发者账号为 1 年。
-- 开源发布前建议把个人 `DEVELOPMENT_TEAM` 从 pbxproj 中移除，改用本地 xcconfig 覆盖。
+- `Local.xcconfig` 不会提交到仓库，避免泄露个人 Team ID。
 
 ### 后台限制
 

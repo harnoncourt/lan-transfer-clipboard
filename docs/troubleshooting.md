@@ -19,7 +19,7 @@
 4. 重启应用。
 5. 在路由器中关闭客户端隔离。
 
-当前实现会同时向 `255.255.255.255` 和本机 `/24` 网段 directed broadcast 发送心跳。Android 端也会申请 `WifiManager.MulticastLock`。如果 Windows 或 Android 右上角仍显示 `0 在线`，通常说明当前网络或系统防火墙仍在拦截 UDP `45671` 或设备互访。
+Windows 和 Android 会同时向 `255.255.255.255` 与本机 `/24` 网段 directed broadcast 发送心跳；iOS 仅使用按实际子网掩码计算的 directed broadcast。Android 端也会申请 `WifiManager.MulticastLock`。如果 Windows 或 Android 右上角仍显示 `0 在线`，通常说明当前网络或系统防火墙仍在拦截 UDP `45671` 或设备互访。
 
 如果设备清单里已经能看到远端设备，但右上角仍显示 `0 在线`，请安装最新 APK。当前版本顶部状态栏会直接监听同一份 `service.peers` 数据，在线数应与设备清单数量一致。
 

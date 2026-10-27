@@ -22,7 +22,7 @@ LAN Transfer Clipboard 是一个面向 macOS、Windows、Android、iOS 的局域
 - CocoaPods 1.16.2 已安装。
 - Xcode 26.5 已安装并被系统选中。
 - iOS Simulator runtime（iOS 26.5）已安装，iPhone/iPad 模拟器可用。
-- iOS 平台工程已生成并验证：模拟器与 iPad 真机均可构建安装。
+- iOS 平台工程已生成；真机安装需要自行配置签名，运行表现仍应在目标设备上验证。
 
 ## 已实现能力
 

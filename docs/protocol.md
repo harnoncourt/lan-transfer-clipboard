@@ -16,9 +16,9 @@ HTTP 端口会通过 UDP `hello` 消息告知其他设备。
 每台设备启动后绑定 UDP `45671`，并每 3 秒广播一次 `hello`。当前实现会同时发送到：
 
 - `255.255.255.255:45671`：limited broadcast（iOS 除外，系统会拒绝该地址）。
-- 本机 IPv4 地址推导出的 `/24` directed broadcast，例如 `192.168.1.255:45671`、`10.0.0.255:45671`。
+- 本机 IPv4 地址推导出的 directed broadcast。iOS 使用系统提供的子网掩码，例如 `10.0.12.0/23` 会发送到 `10.0.13.255:45671`；其他平台目前按 `/24` 推导。
 
-这样可以覆盖一部分不可靠转发 limited broadcast、但允许网段定向广播的局域网环境。iOS 端只使用 directed broadcast。协议层仍然只定义 `hello` payload，广播目标属于当前客户端实现策略。
+这样可以覆盖一部分不可靠转发 limited broadcast、但允许网段定向广播的局域网环境。iOS 端只使用由实际掩码计算出的 directed broadcast。协议层仍然只定义 `hello` payload，广播目标属于当前客户端实现策略。
 
 ### Hello Payload
 
